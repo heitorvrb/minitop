@@ -52,6 +52,8 @@ get_color() {
 render() {
   local -n ref=$1
   local out=""
+  local pad=$(( WIDTH - ${#ref[@]} ))
+  for ((i=0; i<pad; i++)); do out+=" "; done
   for v in "${ref[@]}"; do
     local idx=$((v/12))
     ((idx>8)) && idx=8
@@ -66,7 +68,10 @@ render_rows() {
   local n=$2
   local max_units=$(( n * 8 ))
   local rows=()
-  for ((r=0; r<n; r++)); do rows[$r]=""; done
+  local padding=""
+  local pad=$(( WIDTH - ${#ref[@]} ))
+  for ((i=0; i<pad; i++)); do padding+=" "; done
+  for ((r=0; r<n; r++)); do rows[$r]="$padding"; done
   for v in "${ref[@]}"; do
     local units=$(( v * max_units / 100 ))
     ((units > max_units)) && units=$max_units
