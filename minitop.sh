@@ -2,11 +2,14 @@
 
 SLEEP=1
 TALL=0
+COMBINED_CPU=0
 IFACE=""
 
 for arg in "$@"; do
   if [[ "$arg" == "--tall" ]]; then
     TALL=1
+  elif [[ "$arg" == "--combined-cpu" ]]; then
+    COMBINED_CPU=1
   elif [[ -n "$arg" ]]; then
     IFACE="$arg"
   fi
@@ -137,7 +140,7 @@ while true; do
   buf=""
 
   mapfile -t CUR_CORES < <(get_core_lines)
-  num_resources=$(( 4 + ${#CUR_CORES[@]} ))
+  num_resources=$(( 4 + (COMBINED_CPU ? 0 : ${#CUR_CORES[@]}) ))
   if ((TALL)); then
     ROW_HEIGHT=$(( TERM_LINES / num_resources ))
     ((ROW_HEIGHT < 1)) && ROW_HEIGHT=1
@@ -153,25 +156,27 @@ while true; do
   print_row "CPU" "CPU_HIST"
 
   # per-core
-  for i in "${!CUR_CORES[@]}"; do
-    val=$(calc_cpu_pair "${PREV_CORES[$i]}" "${CUR_CORES[$i]}")
-    CORE_HIST[$i]="${CORE_HIST[$i]} $val"
-    core_arr=(${CORE_HIST[$i]})
-    ((${#core_arr[@]} > WIDTH)) && core_arr=("${core_arr[@]:1}")
-    CORE_HIST[$i]="${core_arr[*]}"
+  if ! ((COMBINED_CPU)); then
+    for i in "${!CUR_CORES[@]}"; do
+      val=$(calc_cpu_pair "${PREV_CORES[$i]}" "${CUR_CORES[$i]}")
+      CORE_HIST[$i]="${CORE_HIST[$i]} $val"
+      core_arr=(${CORE_HIST[$i]})
+      ((${#core_arr[@]} > WIDTH)) && core_arr=("${core_arr[@]:1}")
+      CORE_HIST[$i]="${core_arr[*]}"
 
-    label=$(printf "C%-2d" "$i")
-    if ((ROW_HEIGHT > 1)); then
-      render_rows core_arr $ROW_HEIGHT
-      for ((r=0; r<ROW_HEIGHT-1; r++)); do buf+="    ${ROWS[$r]}"$'\n'; done
-      printf -v line "%-4s%s\n" "$label" "${ROWS[$((ROW_HEIGHT-1))]}"
-      buf+="$line"
-    else
-      render core_arr
-      printf -v line "%-4s%s\n" "$label" "$RENDERED"
-      buf+="$line"
-    fi
-  done
+      label=$(printf "C%-2d" "$i")
+      if ((ROW_HEIGHT > 1)); then
+        render_rows core_arr $ROW_HEIGHT
+        for ((r=0; r<ROW_HEIGHT-1; r++)); do buf+="    ${ROWS[$r]}"$'\n'; done
+        printf -v line "%-4s%s\n" "$label" "${ROWS[$((ROW_HEIGHT-1))]}"
+        buf+="$line"
+      else
+        render core_arr
+        printf -v line "%-4s%s\n" "$label" "$RENDERED"
+        buf+="$line"
+      fi
+    done
+  fi
   PREV_CORES=("${CUR_CORES[@]}")
 
   # MEM
